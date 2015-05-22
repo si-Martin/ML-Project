@@ -1,0 +1,72 @@
+---
+title: 'Predicting the barbell lifts  '
+author: "si-Martin"
+date: "22 May 2015"
+output:
+  html_document:
+    keep_md: yes
+---
+
+## Data cleaning procedure
+I've used only the raw data, hence all calculations such as averages, minimuns, etc, have been left out. The column "new window" also suggested modified data, hence the rows corresponding new_window = yes, were left out. Another technical rows such as user and unneccessary times have been omitted too.
+
+
+```{r}
+library(caret)
+library(ggplot2)
+
+training = read.csv("/Users/Martin/Downloads/pml-training.csv")
+
+set.seed(123)
+training <- subset(training, new_window == "no")
+ColNamesExclude <- c(colnames(training)[grep("avg_*", colnames(training))],
+                    colnames(training)[grep("min_*", colnames(training))],
+                    colnames(training)[grep("max_*", colnames(training))],
+                    colnames(training)[grep("stddev_*", colnames(training))],
+                    colnames(training)[grep("var_*", colnames(training))],
+                    colnames(training)[grep("kurtosis_*", colnames(training))],
+                    colnames(training)[grep("skewness_*", colnames(training))],
+                    colnames(training)[grep("amplitude_*", colnames(training))],
+                    "new_window", "num_window", "X","user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", "cvtd_timestamp" 
+                    )
+
+training <- training[, -which(names(training) %in% ColNamesExclude)]
+```
+
+## Model
+
+For the sake of this particular assignement I've used only 30% of all data for training in order to minimize the processing time. I might use more, if the assigment was "for real". 
+
+The method is random forest. The model uses 5 fold cross validation as parameter. The estimate error rate is 1.84%. Similar can be expected in the testing sample.
+
+```{r}
+inTrain = createDataPartition(training$classe, p = 0.3)[[1]]
+training = training[ inTrain,]
+
+print(Sys.time())
+mod1 <- train(classe ~ .,  method="rf", data=training, trControl=trainControl(method="cv",number=5), prox=TRUE,allowParallel=TRUE)
+print(Sys.time())
+```
+
+I have also checked, what are the best variables to deal with. Furthermore, the results of the model have been ( suspiciously) fantastic. See the results below. Near perfect accuracy in comparision to industry standard that is satisfied already with 0.7+ accuracy.
+
+```{r}
+varImp(mod1)
+mod1$finalModel
+```
+
+## Predictions (out of sample)
+I used the rest of the data to test the model. Amazingly prediction have been ever better. 100% accuracy.
+```{r}
+testing <- training[ -inTrain,]
+pred1 <-  predict(mod1, testing)
+table(testing$classe, pred1)
+```
+
+## Additional prediction (20 cases)
+Again, perfect score. Which is scary, but for the sake of this assignment, I let it be.
+
+```{r}
+testing1 = read.csv("/Users/Martin/Downloads/pml-testing.csv")
+predict(mod1, testing1)
+```
